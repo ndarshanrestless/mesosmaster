@@ -1,5 +1,5 @@
 #!/usr/bin/env python2.7
-1;95;0cfrom setuptools import setup
+from setuptools import setup
 
 '''
 import codecs
