@@ -19,10 +19,41 @@ app.config.update(dict(
 ))
 app.config.from_object(__name__)
 
-
 @app.route('/')
 def index():
     return Response("This is Meso cluster master, What are you looking at?", 200)
+
+
+def connect_db():
+    try:
+        conn = psycopg2.connect(
+            "dbname='bar' user='bar'"
+            "host='localhost' password='bar'")
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    except:
+        print "Unable to connect to PG database"
+    return conn
+
+
+def get_db():
+    """
+    Opens a new database connection
+    if there is none yet for the
+    current application context.
+    """
+    if not hasattr(g, 'postgres_db'):
+        g.postgres_db = connect_db()
+
+    return g.postgres_db
+
+
+def query_db(db, query, args=(), one=False):
+    cur = db.cursor()
+    cur.execute(query, args)
+    r = [dict((cur.description[i][0], value)
+              for i, value in enumerate(row)) for row in cur.fetchall()]
+    #cur.connection.close()
+    return (r[0] if r else None) if one else r
 
 
 def status_400_on_exception(f):
@@ -53,12 +84,15 @@ def register_master():
     ipdb.set_trace()
     
     jd = request.args
-    print jd
-
+    
     # Assert all the rating fields exsits in request
     assert jd is not None, "Need to send the ip of mesos master"
-
-    #todo save in Postgres the state
+    
+    db = get_db()
+    db.cursor().execute(
+        """INSERT INTO registered_mesos VALUES (%s, %s)""",
+        (jd['mesos_server_ip'], jd['mesos_server_name']))
+    db.save()
     
     return Response("Successfully registered the master with ip:{}".
                     format(jd['mesos_server_ip']), 200)
