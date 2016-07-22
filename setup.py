@@ -22,8 +22,8 @@ setup(
     name="backend",
     version='1.0',
     description="Python Distribution backend installation for PG and flask",
-    url="http://github.com/nnaren1902/BarHopper/tree/master/backend",
-    author_email='ndarshan@gmail.com',
+    url="http://github.com/nidhinarendra"
+    author_email='nidhi.narendra1@gmail.com',
     install_requires=[
         'flask==0.10.1',
         'geopy==1.11.0',
