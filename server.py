@@ -12,10 +12,10 @@ app = Flask(__name__)
 app.config.update(dict(
     DATABASE='postgres',
     HOST='localhost',
-    DEBUG=False,  # True,
+    DEBUG=True,
     SECRET_KEY='bar007',
     USERNAME='postgres',
-    PASSWORD='bar',
+    #PASSWORD='bar',
 ))
 app.config.from_object(__name__)
 
@@ -26,9 +26,11 @@ def index():
 
 def connect_db():
     try:
+     
+        ipdb.set_trace()
         conn = psycopg2.connect(
-            "dbname='bar' user='bar'"
-            "host='localhost' password='bar'")
+            "dbname='postgres' user='postgres'")
+            #"host='localhost'")
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     except:
         print "Unable to connect to PG database"
