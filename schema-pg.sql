@@ -11,6 +11,6 @@ CREATE TABLE registered_mesos
 CREATE TABLE docker_container_data
 (
   docker_id TEXT,
-  mesos_slave_id TEXT PRIMARY KEY,
+  mesos_slave_id TEXT,
   mesos_master_id TEXT
 );

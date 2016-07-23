@@ -75,73 +75,85 @@ def status_400_on_exception(f):
             return retval
     return _f
 
-
+#http://54.153.75.141:5000/registermaster?meso_master_id=123&mesos_slave_id=456&meso_master_ip=54.67.45.456
 @app.route('/registermaster', methods=['POST'])
 #@status_400_on_exception
-def register_master():
+def register_mesos_master():
     ipdb.set_trace()
     
     jd = request.args
-    
+    master_ip = jd['mesos_master_ip']
+    master_id = jd['mesos_master_id']
+    slave_id = jd['mesos_slave_id']
+
     # Assert all the rating fields exsits in request
     assert jd is not None, "Need to send the ip of mesos master"
     
     try:
         db = get_db()
         db.cursor().execute("INSERT INTO registered_mesos VALUES "
-                            "(%s, %s)", (jd['ip'], 
-                                        jd['id_name']))
+                            "(%s, %s, %s)", (master_ip, master_id, slave_id))
+    except IntegrityError as err:
+        return Response("Mesos master Already registered with ip:{} id:{}".
+                        format(master_ip, master_id, 200)
     except Exception as err:
         return Response("{}".format(err),400) 
     
     return Response("Successfully registered the master with ip:{}".
-                    format(jd['mesos_server_ip']), 200)
+                    format(master_ip), 200)
 
-@app.route('/dockercontainer', methods=['POST'])
+#http://54.153.75.141:5000/dockercontainerregister?docker_id=12345435&mesos_master_id=678934543&mesos_slave_id=4567873452
+@app.route('/dockercontainerregister', methods=['POST'])
 @status_400_on_exception
-def docker_container_info():
+def docker_container_register():
     ipdb.set_trace()
     
     jd = request.args
+    master_id = jd['mesos_master_id']
+    slave_id = jd['mesos_slave_id']
+    docker_id = jd['docker_id']
     
     assert jd is not None, "Need the information of the docker container"
     
     try:
         db = get_db()
         db.cursor().execute(
-            """INSERT INTO docker_container_data VALUES (%s, %s, %s)""" 
-            (str(jd['docker_id']), str(jd['mesos_master_id']), 
-             str(jd['mesos_slave_id'])))
+            "INSERT INTO docker_container_data VALUES (%s, %s, %s)", 
+            (master_id, slave_id, docker_id))
 
-        db.save
-    except IntegrityError as err:
-        return Response("Already exists so skipping DB insert", 200)
-    except IntegrityError as err:
-        return Response("{}".format(err), 400)
- 
-        
+    except Exception as err:
+        return Response("{}".format(err),400)
     
-    return Response("Thank you for the details. The Docker_id is - {}."
-                    "The Master id is - {}. The slave id is - {}.".
-                    format (jd['docker_id'], jd['mesos_master_id'], 
-                            jd['mesos_slave_id']), 200) 
+    return Response("The Docker details are now added to the database table"
+                    "The Docker_id is - {}."
+                    "The Master id is - {}." 
+                    "The slave id is - {}.".
+                    format (master_id, slave_id, docker_id))
+
 
     
-@app.route('/dockerdeath', methods=['POST'])
+@app.route('/dockercantainerderegister', methods=['POST'])
 @status_400_on_exception
-def docker_death():
-    ipdb.set_trace()
-    jd = request.args
+def docker_container_de_register():
+    '''
+    1. first delete the dead docker from the DB table
+    delete from docker_container_data where docker_id ='456' 
+    and mesos_master_id='90' and mesos_slave_id='5678';
 
-    # Assert all the rating fields exsits in request
-    assert jd is not None, "Need to send the ip of mesos master"
-
-    return Response("Successfully got ot knwo the dockerid:{} died ".
-                    format(jd['docker_id']), 200)
+    2.
+    Inform the ***emesos master*** to spin up one more docker
+    '''
+    inform_another_meos_to_spin_docker()
+    pass
 
     
-def get_next_mesos_to_spin_docker():
+def inform_another_meos_to_spin_docker():
+    '''
+    url = 'http://'+ mesos_master_ip + port + '/'+master_id + '/' + slave_id
+    request.post(url)
+    '''
     pass
+
     
 if __name__ == '__main__':
     if len(sys.argv) >= 2:
