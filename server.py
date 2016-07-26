@@ -95,12 +95,12 @@ def register_mesos_master():
                             "(%s, %s, %s)", (master_ip, master_id, slave_id))
     except IntegrityError as err:
         return Response("Mesos master Already registered with ip:{} id:{}".
-                        format(master_ip, master_id, 200)
+                        format(master_ip, master_id), 200)
     except Exception as err:
         return Response("{}".format(err),400) 
     
     return Response("Successfully registered the master with ip:{}".
-                    format(master_ip), 200)
+                format(master_ip), 200)
 
 #http://54.153.75.141:5000/dockercontainerregister?docker_id=12345435&mesos_master_id=678934543&mesos_slave_id=4567873452
 @app.route('/dockercontainerregister', methods=['POST'])
@@ -112,47 +112,37 @@ def docker_container_register():
     master_id = jd['mesos_master_id']
     slave_id = jd['mesos_slave_id']
     docker_id = jd['docker_id']
+    status = jd['status']
     
     assert jd is not None, "Need the information of the docker container"
     
     try:
         db = get_db()
         db.cursor().execute(
-            "INSERT INTO docker_container_data VALUES (%s, %s, %s)", 
-            (master_id, slave_id, docker_id))
-
+            "INSERT INTO docker_container_data VALUES (%s, %s, %s, %s)", 
+            (master_id, slave_id, docker_id, status))
     except Exception as err:
-        return Response("{}".format(err),400)
+            return Response("{}".format(err),400)
     
     return Response("The Docker details are now added to the database table"
                     "The Docker_id is - {}."
                     "The Master id is - {}." 
-                    "The slave id is - {}.".
-                    format (master_id, slave_id, docker_id))
+                    "The slave id is - {}."
+                    "the status of this container is - {}.".
+                    format (master_id, slave_id, docker_id,
+                            status))
 
 
-    
-@app.route('/dockercantainerderegister', methods=['POST'])
-@status_400_on_exception
-def docker_container_de_register():
-    '''
-    1. first delete the dead docker from the DB table
-    delete from docker_container_data where docker_id ='456' 
-    and mesos_master_id='90' and mesos_slave_id='5678';
-
-    2.
-    Inform the ***emesos master*** to spin up one more docker
-    '''
-    inform_another_meos_to_spin_docker()
+def inform_another_meos_to_spin_docker():
+   
     pass
-
     
 def inform_another_meos_to_spin_docker():
-    '''
+    '''    
     url = 'http://'+ mesos_master_ip + port + '/'+master_id + '/' + slave_id
     request.post(url)
-    '''
-    pass
+    ''' 
+pass
 
     
 if __name__ == '__main__':

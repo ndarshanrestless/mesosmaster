@@ -12,5 +12,6 @@ CREATE TABLE docker_container_data
 (
   docker_id TEXT,
   mesos_slave_id TEXT,
-  mesos_master_id TEXT
+  mesos_master_id TEXT,
+  status TEXT
 );
