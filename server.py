@@ -5,6 +5,7 @@ import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import random
 import ipdb
+import cStringIO
 from functools import wraps
 
 # create our little application :)
@@ -15,7 +16,6 @@ app.config.update(dict(
     DEBUG=True,
     SECRET_KEY='bar007',
     USERNAME='postgres',
-    #PASSWORD='bar',
 ))
 app.config.from_object(__name__)
 
@@ -79,7 +79,7 @@ def status_400_on_exception(f):
 @app.route('/registermaster', methods=['POST'])
 #@status_400_on_exception
 def register_mesos_master():
-#    ipdb.set_trace()
+    #ipdb.set_trace()
     
     jd = request.values
     master_ip = jd['mesos_master_ip']
@@ -104,18 +104,18 @@ def register_mesos_master():
 
 #http://54.153.75.141:5000/dockercontainerregister?docker_id=12345435&mesos_master_id=678934543&mesos_slave_id=4567873452
 @app.route('/dockercontainerregister', methods=['POST'])
-@status_400_on_exception
+#@status_400_on_exception
 def docker_container_register():
-   # ipdb.set_trace()
-    jd = request.get_json()
-    master_id = jd['mesos_master_id']
-    slave_id = jd['mesos_slave_id']
-    docker_id = jd['docker_id']
-    status = jd['status']
-    
-    assert jd is not None, "Need the information of the docker container"
-    
+    #ipdb.set_trace()
     try:
+        jd = request.get_json()
+        master_id = jd['mesos_master_id']
+        slave_id = jd.get('mesos_slave_id', '')
+        docker_id = jd.get('docker_id', '')
+        status = jd.get('status', '')
+    
+        assert jd is not None, "Need the information of the docker container"
+
         db = get_db()
         db.cursor().execute(
             "INSERT INTO docker_container_data VALUES (%s, %s, %s, %s)", 
