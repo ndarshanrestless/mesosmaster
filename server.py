@@ -79,9 +79,9 @@ def status_400_on_exception(f):
 @app.route('/registermaster', methods=['POST'])
 #@status_400_on_exception
 def register_mesos_master():
-    ipdb.set_trace()
+#    ipdb.set_trace()
     
-    jd = request.args
+    jd = request.values
     master_ip = jd['mesos_master_ip']
     master_id = jd['mesos_master_id']
     slave_id = jd['mesos_slave_id']
@@ -106,9 +106,7 @@ def register_mesos_master():
 @app.route('/dockercontainerregister', methods=['POST'])
 @status_400_on_exception
 def docker_container_register():
-    ipdb.set_trace()
-    
-    jd = request.args
+    jd = request.values
     master_id = jd['mesos_master_id']
     slave_id = jd['mesos_slave_id']
     docker_id = jd['docker_id']
@@ -124,10 +122,10 @@ def docker_container_register():
     except Exception as err:
             return Response("{}".format(err),400)
     
-    return Response("The Docker details are now added to the database table"
-                    "The Docker_id is - {}."
-                    "The Master id is - {}." 
-                    "The slave id is - {}."
+    return Response("The Docker details are now added to the database table" \
+                    "The Docker_id is - {}." \
+                    "The Master id is - {}." \
+                    "The slave id is - {}." \
                     "the status of this container is - {}.".
                     format (master_id, slave_id, docker_id,
                             status))
