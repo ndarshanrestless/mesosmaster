@@ -106,7 +106,8 @@ def register_mesos_master():
 @app.route('/dockercontainerregister', methods=['POST'])
 @status_400_on_exception
 def docker_container_register():
-    jd = request.values
+   # ipdb.set_trace()
+    jd = request.get_json()
     master_id = jd['mesos_master_id']
     slave_id = jd['mesos_slave_id']
     docker_id = jd['docker_id']
