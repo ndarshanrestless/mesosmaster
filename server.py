@@ -31,7 +31,7 @@ def connect_db():
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     except:
         print "Unable to connect to PG database"
-        return conn
+    return conn
         
 
 def get_db():
@@ -105,9 +105,8 @@ def register_mesos_master():
 @app.route('/slave', methods=['POST'])
 #@status_400_on_exception                                                       
 def register_mesos_slave():
-    #ipdb.set_trace()                                                            
+    ipdb.set_trace()                                                            
     jd = request.get_json()
-
     if 'mesos_slave_ip' not in jd or 'mesos_slave_id' not in jd:
         return Response("mesos_slave_ip and mesos_slave_id are required",400)
     slave_ip = jd['mesos_slave_ip']
@@ -115,27 +114,25 @@ def register_mesos_slave():
     master_ip = jd['mesos_master_ip']
     master_id = jd['mesos_master_id']
     try:
-        ipdb.set_trace()
+        #ipdb.set_trace()
         db = get_db()
         db_cur = db.cursor()
-        if db_cur.execute("SELECT EXISTS (SELECT * FROM register_master_table WHERE master_id = %s)" , 
-                          ('master_id',)) :
+        if db_cur.execute("SELECT EXISTS (SELECT * FROM register_master_table WHERE master_id = %s)" , ('master_id',)) :
             db_cur.execute("INSERT INTO register_slave_table VALUES "
-                           "(%s, %s)", (slave_ip, slave_id))
+                           "(%s, %s, %s)", (slave_ip, slave_id, master_id))
         else :
             db_cur.execute("INSERT INTO register_master_table VALUES"
                            "(%s,%s)" , (master_ip, master_id))
             db_cur.execute("INSERT INTO register_slave_table VALUES"
-                           "(%s, %s)", (slave_ip, slave_id))
+                           "(%s, %s, %s)", (slave_ip, slave_id, master_id))
     except psycopg2.IntegrityError as err:
         return Response("Mesos slave Already registered with ip:{} id:{}".
                         format(slave_ip, slave_id), 200)
     except Exception as err:
         return Response("{}".format(err),400)
-
     return Response("Successfully registered the slave with ip:{}\n"
                     "Database updated".
-                format(slave_ip), 200)
+                    format(slave_ip), 200)
 
 
 @app.route('/dockercontainer', methods=['POST'])
@@ -146,18 +143,32 @@ def docker_container_register():
     
     if 'container_id' not in jd and 'container_status' not in jd:
         return Response("The docker container id and the status is required", 400)
-        
+    slave_ip = jd['mesos_slave_ip']
+    slave_id = jd['mesos_slave_id']
+    master_ip = jd['mesos_master_ip']
+    master_id = jd['mesos_master_id']    
     docker_container_id = jd['container_id']
     docker_container_status = jd['container_status']
     
     try:
         db = get_db()
-        db.cursor().execute(
-            "INSERT INTO docker_container_table VALUES (%s, %s)", 
-            (docker_container_id, docker_container_status))
+        db_cur = db.cursor()
+        if db_cur.execute("SELECT EXISTS (SELECT * FROM register_slave_table WHERE slave_id = %s)" ('slave_id',)):
+            db_cur.execute("INSERT INTO docker_container_table VALUES" 
+                           "(%s, %s, %s)", (docker_container_id, docker_container_status,
+                                            slave_id))
+        else: 
+            db_cur.execute("INSERT INTO register_master_table VALUES"
+                           "(%s, %s)" , (master_ip, master_id))
+            db_cur.execute("INSERT INTO register_slave_table VALUES"
+                           "(%s, %s, %s)", (slave_ip, slave_id, master_id))
+            db_cur.execute("INSERT INTO docker_container_table VALUES"
+                           "(%s, %s, %s)", (docker_container_id, 
+                                            docker_contanier_status, slave_id))
+
     except psycopg2.IntegrityError as err:
-        return Response("Mesos slave Already registered with ip:{} id:{}".
-                        format(slave_ip, slave_id), 200)
+        return Response("Docker already registered with id:{}\n".
+                        format(docker_container_id), 200)
     except Exception as err:
             return Response("{}".format(err),400)
             
@@ -170,7 +181,6 @@ def docker_container_register():
 
     
 if __name__ == '__main__':
-    ipdb.set_trace()
     if len(sys.argv) >= 2:
         port = int(sys.argv[1])
     else:
