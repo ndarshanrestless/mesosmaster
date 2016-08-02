@@ -21,19 +21,18 @@ app.config.from_object(__name__)
 
 @app.route('/')
 def index():
-    return Response("This is Meso cluster master, What are you looking at?", 200)
-
-
+    return Response("This is Meso cluster master!!!!", 200)
+    
 def connect_db():
     try:
         conn = psycopg2.connect(
             "dbname='postgres' user='postgres'")
-            #"host='localhost'")
+        #"host='localhost'")
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     except:
         print "Unable to connect to PG database"
-    return conn
-
+        return conn
+        
 
 def get_db():
     """
@@ -52,9 +51,8 @@ def query_db(db, query, args=(), one=False):
     cur.execute(query, args)
     r = [dict((cur.description[i][0], value)
               for i, value in enumerate(row)) for row in cur.fetchall()]
-    #cur.connection.close()
     return (r[0] if r else None) if one else r
-
+    
 def status_400_on_exception(f):
     """Decorator for generating a 400 bad request response."""
     @wraps(f)
@@ -75,78 +73,107 @@ def status_400_on_exception(f):
             return retval
     return _f
 
-#http://54.153.75.141:5000/registermaster?meso_master_id=123&mesos_slave_id=456&meso_master_ip=54.67.45.456
-@app.route('/registermaster', methods=['POST'])
+
+@app.route('/mesosmaster', methods=['POST'])
 #@status_400_on_exception
 def register_mesos_master():
     #ipdb.set_trace()
-    
-    jd = request.values
+
+    jd = request.get_json()
+    if 'mesos_master_ip' not in jd or 'mesos_master_id' not in jd:
+        return Response("Mesos_master_id is required",400)
     master_ip = jd['mesos_master_ip']
     master_id = jd['mesos_master_id']
-    slave_id = jd['mesos_slave_id']
 
-    # Assert all the rating fields exsits in request
-    assert jd is not None, "Need to send the ip of mesos master"
-    
     try:
         db = get_db()
-        db.cursor().execute("INSERT INTO registered_mesos VALUES "
-                            "(%s, %s, %s)", (master_ip, master_id, slave_id))
-    except IntegrityError as err:
-        return Response("Mesos master Already registered with ip:{} id:{}".
-                        format(master_ip, master_id), 200)
+        db.cursor().execute("INSERT INTO register_master_table VALUES "
+                            "(%s, %s)", (master_ip, master_id))
+        
+    except psycopg2.IntegrityError as err:
+        return Response("Mesos master already registered with id:{}".
+                        format(master_id), 400)
     except Exception as err:
+        #ipdb.set_trace()
         return Response("{}".format(err),400) 
-    
-    return Response("Successfully registered the master with ip:{}".
-                format(master_ip), 200)
+        
+    return Response("Successfully registered.\n The master ip:{}\n The master id:{}\n"
+                    "Database updated".
+                    format(master_ip, master_id), 200)
 
-#http://54.153.75.141:5000/dockercontainerregister?docker_id=12345435&mesos_master_id=678934543&mesos_slave_id=4567873452
-@app.route('/dockercontainerregister', methods=['POST'])
+
+@app.route('/slave', methods=['POST'])
+#@status_400_on_exception                                                       
+def register_mesos_slave():
+    #ipdb.set_trace()                                                            
+    jd = request.get_json()
+
+    if 'mesos_slave_ip' not in jd or 'mesos_slave_id' not in jd:
+        return Response("mesos_slave_ip and mesos_slave_id are required",400)
+    slave_ip = jd['mesos_slave_ip']
+    slave_id = jd['mesos_slave_id']
+    master_ip = jd['mesos_master_ip']
+    master_id = jd['mesos_master_id']
+    try:
+        ipdb.set_trace()
+        db = get_db()
+        db_cur = db.cursor()
+        if db_cur.execute("SELECT EXISTS (SELECT * FROM register_master_table WHERE master_id = %s)" , 
+                          ('master_id',)) :
+            db_cur.execute("INSERT INTO register_slave_table VALUES "
+                           "(%s, %s)", (slave_ip, slave_id))
+        else :
+            db_cur.execute("INSERT INTO register_master_table VALUES"
+                           "(%s,%s)" , (master_ip, master_id))
+            db_cur.execute("INSERT INTO register_slave_table VALUES"
+                           "(%s, %s)", (slave_ip, slave_id))
+    except psycopg2.IntegrityError as err:
+        return Response("Mesos slave Already registered with ip:{} id:{}".
+                        format(slave_ip, slave_id), 200)
+    except Exception as err:
+        return Response("{}".format(err),400)
+
+    return Response("Successfully registered the slave with ip:{}\n"
+                    "Database updated".
+                format(slave_ip), 200)
+
+
+@app.route('/dockercontainer', methods=['POST'])
 #@status_400_on_exception
 def docker_container_register():
     #ipdb.set_trace()
-    try:
-        jd = request.get_json()
-        master_id = jd['mesos_master_id']
-        slave_id = jd.get('mesos_slave_id', '')
-        docker_id = jd.get('docker_id', '')
-        status = jd.get('status', '')
+    jd = request.get_json()
     
-        assert jd is not None, "Need the information of the docker container"
-
+    if 'container_id' not in jd and 'container_status' not in jd:
+        return Response("The docker container id and the status is required", 400)
+        
+    docker_container_id = jd['container_id']
+    docker_container_status = jd['container_status']
+    
+    try:
         db = get_db()
         db.cursor().execute(
-            "INSERT INTO docker_container_data VALUES (%s, %s, %s, %s)", 
-            (master_id, slave_id, docker_id, status))
+            "INSERT INTO docker_container_table VALUES (%s, %s)", 
+            (docker_container_id, docker_container_status))
+    except psycopg2.IntegrityError as err:
+        return Response("Mesos slave Already registered with ip:{} id:{}".
+                        format(slave_ip, slave_id), 200)
     except Exception as err:
             return Response("{}".format(err),400)
+            
+    return Response("The Docker details are now added to the database table\n" \
+                    "The Docker_id is - {}.\n" \
+                    "The status of this container is - {}.\n".
+                    format (docker_container_id,
+                            docker_container_status),200)
     
-    return Response("The Docker details are now added to the database table" \
-                    "The Docker_id is - {}." \
-                    "The Master id is - {}." \
-                    "The slave id is - {}." \
-                    "the status of this container is - {}.".
-                    format (master_id, slave_id, docker_id,
-                            status))
-
-
-def inform_another_meos_to_spin_docker():
-   
-    pass
-    
-def inform_another_meos_to_spin_docker():
-    '''    
-    url = 'http://'+ mesos_master_ip + port + '/'+master_id + '/' + slave_id
-    request.post(url)
-    ''' 
-pass
 
     
 if __name__ == '__main__':
+    ipdb.set_trace()
     if len(sys.argv) >= 2:
         port = int(sys.argv[1])
     else:
         port = 4000
-    app.run(host='0.0.0.0', port=port)
+
+    app.run(debug=True, host='0.0.0.0', port=port)
