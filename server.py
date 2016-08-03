@@ -117,7 +117,15 @@ def register_mesos_slave():
 #        ipdb.set_trace()
         db = get_db()
         db_cur = db.cursor()
-        if db_cur.execute("SELECT EXISTS (SELECT * FROM register_master_table WHERE master_id = %s)" , ('master_id',)) :
+
+        # read these 20 lines and you will understand whats happening in query_db()
+        # http://initd.org/psycopg/docs/cursor.html#cursor.execute
+        query = ("SELECT * FROM register_master_table WHERE master_id = %s")
+        result = query_db(db, query, ('master_id',))
+
+        # check the result is not none and then if the length of the list returned is zero
+        # implies there are no matchign row in the DB. So do ahead and insert in the if condition
+        if result not None and len(result) == 0:
             db_cur.execute("INSERT INTO register_slave_table VALUES"
                            "(%s,%s,%s)", (slave_ip, slave_id, master_id))
         else :
